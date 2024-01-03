@@ -93,11 +93,6 @@ bool hk_write(HANDLE hProcess, LPCVOID lpBaseAddress, LPVOID lpBuffer, SIZE_T nS
 SIZE_T hk_virtual_query(HANDLE hProcess, LPCVOID lpAddress, PMEMORY_BASIC_INFORMATION lpBuffer, SIZE_T dwLength)
 {
 	MEMORY_BASIC_INFORMATION meminfo;
-	PVMMDLL_MAP_VAD vads;
-	if (!VMMDLL_Map_GetVadW(mem.vHandle, mem.current_process.PID, true, &vads))
-		return false;
-	std::vector<vad_info> vad_infos;
-
 	//Memory in VirtualQuery Is always rounded down, getMemoryRegionContaining will find the nearest (rounded down) region that contains the address.
 	//or if it's equal return the exact region.
 	MemoryRegion<vad_info> region = memoryMap.getMemoryRegionContaining((uintptr_t)lpAddress);
