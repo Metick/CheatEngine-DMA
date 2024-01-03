@@ -48,7 +48,7 @@ BOOL __stdcall CEPlugin_GetVersion(PPluginVersion pv, int sizeofpluginversion)
 	return TRUE;
 }
 
-MemoryMap<vad_info> memoryMap;
+c_memory_map<vad_info> memoryMap;
 
 HANDLE hk_open_process(DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwProcessId)
 {
@@ -72,7 +72,7 @@ HANDLE hk_open_process(DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwProce
 			size_t regionSize = vad_infos[i].get_end() - vad_infos[i].get_start() + 1;
 			//smaller than max int
 			if (regionSize < 2147483647)
-				memoryMap.add(MemoryRegion<vad_info>(vad_infos[i], vad_infos[i].get_start(), regionSize));
+				memoryMap.add(c_memory_region<vad_info>(vad_infos[i], vad_infos[i].get_start(), regionSize));
 		}
 		return (HANDLE)0x69;
 	}
@@ -95,13 +95,13 @@ SIZE_T hk_virtual_query(HANDLE hProcess, LPCVOID lpAddress, PMEMORY_BASIC_INFORM
 	MEMORY_BASIC_INFORMATION meminfo;
 	//Memory in VirtualQuery Is always rounded down, getMemoryRegionContaining will find the nearest (rounded down) region that contains the address.
 	//or if it's equal return the exact region.
-	MemoryRegion<vad_info> region = memoryMap.getMemoryRegionContaining((uintptr_t)lpAddress);
-	if (region.getRegionSize() > 0)
+	c_memory_region<vad_info> region = memoryMap.get_memory_region_containing((uintptr_t)lpAddress);
+	if (region.get_region_size() > 0)
 	{
 		//We have Protection hardcoded rn, because we're DMA and we can read all pages. uncomment the line in get_protection & comment the PAGE_READWRITE to use the real protection that the page has.
-		auto found_vad = region.getUserObject();
-		auto rangeStart = region.getRegionStart();
-		auto rangeEnd = region.getRegionEnd();
+		auto found_vad = region.get_object();
+		auto rangeStart = region.get_region_start();
+		auto rangeEnd = region.get_region_end();
 		auto size = rangeEnd - rangeStart + 1;
 		meminfo.BaseAddress = reinterpret_cast<PVOID>(rangeStart);
 		meminfo.AllocationBase = reinterpret_cast<PVOID>(rangeStart);

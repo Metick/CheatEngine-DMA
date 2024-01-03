@@ -3,68 +3,68 @@
 #include <assert.h>
 
 template <typename T>
-class MemoryRegion
+class c_memory_region
 {
 public:
-	MemoryRegion() : regionStart(0), size(0)
+	c_memory_region() : region_start(0), size(0)
 	{
 	}
 
-	MemoryRegion(T userObject, uintptr_t regionStart, size_t size)
-		: userObject(userObject), regionStart(regionStart), size(size)
+	c_memory_region(T user_object, uintptr_t region_start, size_t size)
+		: user_object(user_object), region_start(region_start), size(size)
 	{
 	}
 
-	T getUserObject() const
+	T get_object() const
 	{
-		return userObject;
+		return user_object;
 	}
 
-	uintptr_t getRegionStart() const
+	uintptr_t get_region_start() const
 	{
-		return regionStart;
+		return region_start;
 	}
 
-	uintptr_t getRegionEnd() const
+	uintptr_t get_region_end() const
 	{
-		return regionStart + size - 1;
+		return region_start + size - 1;
 	}
 
-	size_t getRegionSize() const
+	size_t get_region_size() const
 	{
 		return size;
 	}
 
-	bool operator<(const MemoryRegion& other) const
+	bool operator<(const c_memory_region& other) const
 	{
-		return this->regionStart < other.regionStart;
+		return this->region_start < other.region_start;
 	}
 
-	bool operator==(const MemoryRegion& other) const
+	bool operator==(const c_memory_region& other) const
 	{
-		return this->regionStart == other.regionStart;
+		return this->region_start == other.region_start;
 	}
 
 	bool contains(uintptr_t address) const
 	{
-		return address >= getRegionStart() && address < getRegionEnd() + 1;
+		return address >= get_region_start() && address < get_region_end() + 1;
 	}
 
 private:
-	T userObject;
-	uintptr_t regionStart;
+	T user_object;
+	uintptr_t region_start;
 	size_t size;
 };
 
 // rewritten from Java to C++
 // https://github.com/idkfrancis/ceserver-pcileech/blob/main/src/main/java/iflores/ceserver/pcileech/MemoryMap.java#L50
 template <typename T>
-class MemoryMap
+class c_memory_map
 {
 public:
-	MemoryMap() = default;
+	c_memory_map() = default;
 
-	void add(const MemoryRegion<T>& newEntry)
+	void add(const c_memory_region<T>& newEntry)
 	{
 		regions.push_back(newEntry);
 	}
@@ -74,68 +74,68 @@ public:
 		regions.clear();
 	}
 
-	MemoryRegion<T> getMemoryRegionContaining(uintptr_t address) const
+	c_memory_region<T> get_memory_region_containing(uintptr_t address) const
 	{
 		T value;
-		MemoryRegion<T> floorEntry = floor(address);
-		if (floorEntry.getRegionSize() > 0)
+		c_memory_region<T> floor_entry = floor(address);
+		if (floor_entry.get_region_size() > 0)
 		{
-			if (floorEntry.contains(address))
+			if (floor_entry.contains(address))
 			{
-				return floorEntry;
+				return floor_entry;
 			}
-			MemoryRegion<T> ceilEntry = ceil(address);
-			if (ceilEntry.getRegionSize() > 0)
+			c_memory_region<T> ceil_entry = ceil(address);
+			if (ceil_entry.get_region_size() > 0)
 			{
 				// Adjusted to handle large regions
-				return MemoryRegion<T>(value, floorEntry.getRegionEnd() + 1, ceilEntry.getRegionStart() - floorEntry.getRegionEnd() - 1);
+				return c_memory_region<T>(value, floor_entry.get_region_end() + 1, ceil_entry.get_region_start() - floor_entry.get_region_end() - 1);
 			}
 			// Past end
-			return MemoryRegion<T>(value, 0, 0);
+			return c_memory_region<T>(value, 0, 0);
 		}
-		MemoryRegion<T> ceilEntry = ceil(address);
-		if (ceilEntry.getRegionSize() > 0)
+		c_memory_region<T> ceil_entry = ceil(address);
+		if (ceil_entry.get_region_size() > 0)
 		{
-			return MemoryRegion<T>(value, 0, ceilEntry.getRegionStart());
+			return c_memory_region<T>(value, 0, ceil_entry.get_region_start());
 		}
-		return MemoryRegion<T>(value, 0, 0);
+		return c_memory_region<T>(value, 0, 0);
 	}
 
 private:
-	MemoryRegion<T> floor(uintptr_t address) const
+	c_memory_region<T> floor(uintptr_t address) const
 	{
 		T value;
 		auto it = std::lower_bound(regions.begin(), regions.end(), address,
-		                           [](const MemoryRegion<T>& region, uintptr_t addr)
+		                           [](const c_memory_region<T>& region, uintptr_t addr)
 		                           {
-			                           return region.getRegionEnd() < addr;
+			                           return region.get_region_end() < addr;
 		                           });
 		if (it != regions.end() && it->contains(address))
 		{
 			return *it;
 		}
-		return it == regions.begin() ? MemoryRegion<T>(value, 0, 0) : *(--it);
+		return it == regions.begin() ? c_memory_region<T>(value, 0, 0) : *(--it);
 	}
 
-	MemoryRegion<T> ceil(uintptr_t address) const
+	c_memory_region<T> ceil(uintptr_t address) const
 	{
 		T value;
 		auto it = std::upper_bound(regions.begin(), regions.end(), address,
-		                           [](uintptr_t addr, const MemoryRegion<T>& region)
+		                           [](uintptr_t addr, const c_memory_region<T>& region)
 		                           {
-			                           return addr < region.getRegionStart();
+			                           return addr < region.get_region_start();
 		                           });
-		return it == regions.end() ? MemoryRegion<T>(value, 0, 0) : *it;
+		return it == regions.end() ? c_memory_region<T>(value, 0, 0) : *it;
 	}
 
-	bool regionOverlaps(const MemoryRegion<T>& a, const MemoryRegion<T>& b) const
+	bool region_overlaps(const c_memory_region<T>& a, const c_memory_region<T>& b) const
 	{
-		if (a.getRegionStart() > b.getRegionEnd() || b.getRegionStart() > a.getRegionEnd())
+		if (a.get_region_start() > b.get_region_end() || b.get_region_start() > a.get_region_end())
 		{
 			return false;
 		}
 		return true;
 	}
 
-	std::vector<MemoryRegion<T>> regions;
+	std::vector<c_memory_region<T>> regions;
 };

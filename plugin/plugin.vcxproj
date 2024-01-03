@@ -91,7 +91,7 @@
     <IntDir>$(Platform)\$(Configuration)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
     <LibraryPath>D:\git\cheat-engine\FBI\bin\;$(LibraryPath)</LibraryPath>
-    <TargetName>metick</TargetName>
+    <TargetName>plugin</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
