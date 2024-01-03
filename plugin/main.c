@@ -98,6 +98,8 @@ SIZE_T hk_virtual_query(HANDLE hProcess, LPCVOID lpAddress, PMEMORY_BASIC_INFORM
 		return false;
 	std::vector<vad_info> vad_infos;
 
+	//Memory in VirtualQuery Is always rounded down, getMemoryRegionContaining will find the nearest (rounded down) region that contains the address.
+	//or if it's equal return the exact region.
 	MemoryRegion<vad_info> region = memoryMap.getMemoryRegionContaining((uintptr_t)lpAddress);
 	if (region.getRegionSize() > 0)
 	{
