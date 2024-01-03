@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="main.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Memory\memmy.h" />
+    <ClInclude Include="Memory\vad.h" />
+    <ClInclude Include="CheatEngine\cepluginsdk.h" />
+    <ClInclude Include="CheatEngine\lauxlib.h" />
+    <ClInclude Include="CheatEngine\lua.h" />
+    <ClInclude Include="CheatEngine\lua.hpp" />
+    <ClInclude Include="CheatEngine\luaconf.h" />
+    <ClInclude Include="CheatEngine\lualib.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CheatEngine">
+      <UniqueIdentifier>{50d1e459-69dc-4f43-9a67-7b202668311c}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

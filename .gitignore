@@ -30,3 +30,17 @@
 *.exe
 *.out
 *.app
+*.vsidx
+.vs/plugin/v17/.suo
+*.db
+*.db-shm
+*.db-wal
+*.opendb
+*.ipch
+*.tlog
+*.log
+*.recipe
+*.txt
+*.pdb
+plugin/.vs/example-c/v17/.suo
+*.exp
