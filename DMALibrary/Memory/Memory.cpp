@@ -229,8 +229,6 @@ bool Memory::Init(std::string process_name, bool memMap, bool debug)
 
 bool Memory::Init(int process_pid, bool memMap, bool debug)
 {
-	Init("dummy", memMap, debug);
-	//in theory we should have dma access now
 	PVMMDLL_PROCESS_INFORMATION process_info = NULL;
 	DWORD total_processes = 0;
 

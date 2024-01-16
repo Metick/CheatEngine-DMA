@@ -6,6 +6,7 @@
 
 #include <windows.h>
 #include <stdio.h>
+#include <TlHelp32.h>
 #include "CheatEngine/cepluginsdk.h"
 
 #include <DMALibrary/Memory/Memory.h>
@@ -49,6 +50,7 @@ BOOL __stdcall CEPlugin_GetVersion(PPluginVersion pv, int sizeofpluginversion)
 }
 
 c_memory_map<vad_info> memoryMap;
+std::vector<vad_info> vad_infos;
 
 HANDLE hk_open_process(DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwProcessId)
 {
@@ -56,6 +58,7 @@ HANDLE hk_open_process(DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwProce
 	{
 		PVMMDLL_MAP_VAD vads;
 		memoryMap.clear();
+		vad_infos.clear();
 
 		if (!VMMDLL_Map_GetVadW(mem.vHandle, mem.current_process.PID, true, &vads))
 			return false;
@@ -71,9 +74,12 @@ HANDLE hk_open_process(DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwProce
 		{
 			size_t regionSize = vad_infos[i].get_end() - vad_infos[i].get_start() + 1;
 			//smaller than max int
-			if (regionSize < 2147483647)
-				memoryMap.add(c_memory_region<vad_info>(vad_infos[i], vad_infos[i].get_start(), regionSize));
+			memoryMap.add(c_memory_region<vad_info>(vad_infos[i], vad_infos[i].get_start(), regionSize));
+			vad_infos.push_back(vad_infos[i]);
 		}
+
+		//Get List of Processes
+
 		return (HANDLE)0x69;
 	}
 
@@ -140,6 +146,82 @@ void __stdcall PointersReassigned(int reserved)
 	*(uintptr_t*)(virtual_query) = (uintptr_t)&hk_virtual_query;
 }
 
+HANDLE hk_create_tool_help_32_snapshot(DWORD dwFlags, DWORD th32ProcessID)
+{
+	return (HANDLE)CreateToolhelp32Snapshot(dwFlags, th32ProcessID);
+}
+
+DWORD count_processes = 0;
+DWORD current_process = 0;
+PVMMDLL_PROCESS_INFORMATION info = NULL;
+
+BOOL hk_process_32_first(HANDLE hSnapshot, LPPROCESSENTRY32 lppe)
+{
+	info = NULL;
+	count_processes = 0;
+	if (!VMMDLL_ProcessGetInformationAll(mem.vHandle, &info, &count_processes))
+		return false;
+	lppe->dwSize = sizeof(PROCESSENTRY32);
+	lppe->th32ParentProcessID = info[current_process].dwPPID;
+	lppe->th32ProcessID = info[current_process].dwPID;
+	strcpy(lppe->szExeFile, info[current_process].szNameLong);
+	current_process++;
+	return true;
+}
+
+BOOL hk_process_32_next(HANDLE hSnapshot, LPPROCESSENTRY32 lppe)
+{
+	if (current_process >= count_processes)
+	{
+		current_process = 0;
+		return false;
+	}
+
+	lppe->dwSize = sizeof(PROCESSENTRY32);
+	lppe->th32ParentProcessID = info[current_process].dwPPID;
+	lppe->th32ProcessID = info[current_process].dwPID;
+	strcpy(lppe->szExeFile, info[current_process].szNameLong);
+	current_process++;
+	return true;
+}
+
+PVMMDLL_MAP_MODULE module_info = NULL;
+DWORD current_module = 0;
+
+BOOL hk_module_32_first(HANDLE hSnapshot, LPMODULEENTRY32 lpme)
+{
+	module_info = NULL;
+	current_module = 0;
+	if (!VMMDLL_Map_GetModuleU(mem.vHandle, mem.current_process.PID, &module_info, VMMDLL_MODULE_FLAG_NORMAL))
+		return false;
+
+	lpme->dwSize = sizeof(MODULEENTRY32);
+	lpme->th32ProcessID = mem.current_process.PID;
+	lpme->hModule = (HMODULE)module_info->pMap[current_module].vaBase;
+	lpme->modBaseSize = module_info->pMap[current_module].cbImageSize;
+	lpme->modBaseAddr = (BYTE*)module_info->pMap[current_module].vaBase;
+	strcpy(lpme->szModule, module_info->pMap[current_module].uszText);
+	return true;
+}
+
+BOOL hk_module_32_next(HANDLE hSnapshot, LPMODULEENTRY32 lpme)
+{
+	if (current_module >= module_info->cMap)
+	{
+		current_module = 0;
+		return false;
+	}
+
+	lpme->dwSize = sizeof(MODULEENTRY32);
+	lpme->th32ProcessID = mem.current_process.PID;
+	lpme->hModule = (HMODULE)module_info->pMap[current_module].vaBase;
+	lpme->modBaseSize = module_info->pMap[current_module].cbImageSize;
+	lpme->modBaseAddr = (BYTE*)module_info->pMap[current_module].vaBase;
+	strcpy(lpme->szModule, module_info->pMap[current_module].uszText);
+	current_module++;
+	return true;
+}
+
 BOOL __stdcall CEPlugin_InitializePlugin(PExportedFunctions ef, int pluginid)
 {
 	MAINMENUPLUGIN_INIT init1;
@@ -155,6 +237,11 @@ BOOL __stdcall CEPlugin_InitializePlugin(PExportedFunctions ef, int pluginid)
 	auto read_process_memory = ef->ReadProcessMemory;
 	auto write_process_memory = ef->WriteProcessMemory;
 	auto virtual_query = ef->VirtualQueryEx;
+	auto create_tool_help32 = ef->CreateToolhelp32Snapshot;
+	auto process_32_first = ef->Process32First;
+	auto process_32_next = ef->Process32Next;
+	auto module_32_first = ef->Module32First;
+	auto module_32_next = ef->Module32Next;
 
 	printf("Hooking Open Process 0x%p\n", open_process);
 	*(uintptr_t*)(open_process) = (uintptr_t)&hk_open_process;
@@ -167,6 +254,24 @@ BOOL __stdcall CEPlugin_InitializePlugin(PExportedFunctions ef, int pluginid)
 
 	printf("Hooking Virtual Query 0x%p\n", virtual_query);
 	*(uintptr_t*)(virtual_query) = (uintptr_t)&hk_virtual_query;
+
+	printf("Hooking CreateToolhelp32Snapshot 0x%p\n", create_tool_help32);
+	*(uintptr_t*)(create_tool_help32) = (uintptr_t)&hk_create_tool_help_32_snapshot;
+
+	printf("Hooking Process32First 0x%p\n", process_32_first);
+	*(uintptr_t*)(process_32_first) = (uintptr_t)&hk_process_32_first;
+
+	printf("Hooking Process32Next 0x%p\n", process_32_next);
+	*(uintptr_t*)(process_32_next) = (uintptr_t)&hk_process_32_next;
+
+	printf("Hooking Module32First 0x%p\n", module_32_first);
+	*(uintptr_t*)(module_32_first) = (uintptr_t)&hk_module_32_first;
+
+	printf("Hooking Module32Next 0x%p\n", module_32_next);
+	*(uintptr_t*)(module_32_next) = (uintptr_t)&hk_module_32_next;
+
+	printf("Initialize DMA in advance\n");
+	mem.Init("", true);
 
 	//TODO: fix this, this doesn't seem to work for me, i don't know why.
 	/*init4.callbackroutine = PointersReassigned;
