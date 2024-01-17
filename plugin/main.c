@@ -75,7 +75,6 @@ HANDLE hk_open_process(DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwProce
 			size_t regionSize = vad_infos[i].get_end() - vad_infos[i].get_start() + 1;
 			//smaller than max int
 			memoryMap.add(c_memory_region<vad_info>(vad_infos[i], vad_infos[i].get_start(), regionSize));
-			vad_infos.push_back(vad_infos[i]);
 		}
 
 		//Get List of Processes

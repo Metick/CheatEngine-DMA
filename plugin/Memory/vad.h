@@ -70,8 +70,8 @@ public:
 
 	uint32_t get_protection()
 	{
-		//return PAGE_READWRITE;
-		return _protection;
+		return PAGE_READWRITE;
+		//return _protection;
 	}
 
 	uint32_t get_image()
