@@ -1,0 +1,30 @@
+name: Build CheatEngine-DMA (Fast)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup CMake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.29.0'
+
+      - name: Configure CMake (x64 Release)
+        run: cmake -B build -A x64 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Project
+        run: cmake --build build --config Release -- /m
+
+      - name: Upload Compiled Files
+        uses: actions/upload-artifact@v4
+        with:
+          name: CheatEngine-DMA-Release
+          path: build/Release/*
