@@ -242,6 +242,14 @@ bool Memory::Init(std::string process_name, bool memMap, bool debug)
 
 bool Memory::Init(int process_pid, bool memMap, bool debug)
 {
+	//Bring the DMA up if it is not already. Init with an empty name returns false
+	//once it fails to resolve that name, which is expected and harmless here.
+	if (!DMA_INITIALIZED)
+		Init(std::string(""), memMap, debug);
+
+	if (!DMA_INITIALIZED)
+		return false;
+
 	PVMMDLL_PROCESS_INFORMATION process_info = NULL;
 	DWORD total_processes = 0;
 
@@ -262,7 +270,46 @@ bool Memory::Init(int process_pid, bool memMap, bool debug)
 		}
 	}
 
-	return mem.Init(name, memMap, debug);
+	VMMDLL_MemFree(process_info);
+
+	if (name.empty())
+	{
+		LOG("[!] Could not find a process with PID %i\n", process_pid);
+		return false;
+	}
+
+	//Attach to the PID we were actually handed. Going back through
+	//Init(name) resolved it with VMMDLL_PidGetFromName, which returns an arbitrary
+	//one of the processes sharing that name, so the wrong instance could be picked.
+	current_process.PID = process_pid;
+	current_process.process_name = name;
+
+	if (!mem.FixCr3())
+		std::cout << "Failed to fix CR3" << std::endl;
+	else
+		std::cout << "CR3 fixed" << std::endl;
+
+	current_process.base_address = GetBaseDaddy(name);
+	if (!current_process.base_address)
+	{
+		LOG("[!] Could not get base address!\n");
+		return false;
+	}
+
+	current_process.base_size = GetBaseSize(name);
+	if (!current_process.base_size)
+	{
+		LOG("[!] Could not get base size!\n");
+		return false;
+	}
+
+	LOG("Process information of %s\n", name.c_str());
+	LOG("PID: %i\n", current_process.PID);
+	LOG("Base Address: 0x%llx\n", current_process.base_address);
+	LOG("Base Size: 0x%llx\n", current_process.base_size);
+
+	PROCESS_INITIALIZED = TRUE;
+	return true;
 }
 
 DWORD Memory::GetPidFromName(std::string process_name)
@@ -758,7 +805,8 @@ bool Memory::Read(uintptr_t address, void* buffer, size_t size, int pid) const
 
 bool Memory::Read(uintptr_t address, void* buffer, size_t size, PDWORD read) const
 {
-	*read = 0;
+	if (read)
+		*read = 0;
 	if (!VMMDLL_MemReadEx(this->vHandle, current_process.PID, address, static_cast<PBYTE>(buffer), size, read, VMMDLL_FLAG_NOCACHE))
 	{
 		LOG("[!] Failed to read Memory at 0x%p\n", address);

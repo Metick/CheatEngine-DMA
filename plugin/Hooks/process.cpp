@@ -12,7 +12,12 @@ namespace Hooks
 
 	BOOL WINAPI hk_IsWow64Process(HANDLE hProcess, PBOOL Wow64Process)
 	{
-		return true;
+		//The out parameter has to be written. Leaving it alone made CE read an
+		//uninitialised local, and if that came back non zero CE treated the target
+		//as a 32 bit WOW64 process and clamped every scan to the low 4gb.
+		if (Wow64Process)
+			*Wow64Process = FALSE;
+		return TRUE;
 	}
 
 	HANDLE hk_create_tool_help_32_snapshot(DWORD dwFlags, DWORD th32ProcessID)
@@ -22,31 +27,34 @@ namespace Hooks
 
 	BOOL hk_process_32_first(HANDLE hSnapshot, LPPROCESSENTRY32 lppe)
 	{
-		info = NULL;
+		if (info)
+		{
+			VMMDLL_MemFree(info);
+			info = NULL;
+		}
+
 		count_processes = 0;
+		current_process = 0;
+
 		if (!VMMDLL_ProcessGetInformationAll(mem.vHandle, &info, &count_processes))
-			return false;
-		lppe->dwSize = sizeof(PROCESSENTRY32);
-		lppe->th32ParentProcessID = info[current_process].dwPPID;
-		lppe->th32ProcessID = info[current_process].dwPID;
-		strcpy(lppe->szExeFile, info[current_process].szNameLong);
-		current_process++;
-		return true;
+			return FALSE;
+
+		return hk_process_32_next(hSnapshot, lppe);
 	}
 
 	BOOL hk_process_32_next(HANDLE hSnapshot, LPPROCESSENTRY32 lppe)
 	{
-		if (current_process >= count_processes)
+		if (!info || current_process >= count_processes)
 		{
 			current_process = 0;
-			return false;
+			return FALSE;
 		}
 
 		lppe->dwSize = sizeof(PROCESSENTRY32);
 		lppe->th32ParentProcessID = info[current_process].dwPPID;
 		lppe->th32ProcessID = info[current_process].dwPID;
-		strcpy(lppe->szExeFile, info[current_process].szNameLong);
+		strncpy_s(lppe->szExeFile, sizeof(lppe->szExeFile), info[current_process].szNameLong, _TRUNCATE);
 		current_process++;
-		return true;
+		return TRUE;
 	}
 }

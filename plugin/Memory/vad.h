@@ -131,25 +131,22 @@ public:
 
 	uint32_t get_type()
 	{
-		switch (_type)
-		{
-		case 2:
+		//VadType 1 is VadDevicePhysicalMemory, not a mapped file, so go by the
+		//image/file flags instead. CE leaves MEM_MAPPED unchecked in its scan
+		//settings by default, so a region mistagged MEM_MAPPED is never scanned.
+		if (_fImage || _type == 2 /*VadImageMap*/)
 			return MEM_IMAGE;
-		case 1:
+		if (_fFile)
 			return MEM_MAPPED;
-		default:
-			return MEM_PRIVATE;
-		}
+		return MEM_PRIVATE;
 	}
 
 	uint32_t get_state()
 	{
-		if (_fPrivateMemory)
-			return MEM_COMMIT;
-		else if (_fFile || _fImage)
-			return MEM_RESERVE;
-		else
-			return MEM_FREE;
+		//CE's scanner only keeps regions whose State is MEM_COMMIT, so this has to
+		//reflect the VAD's commit bit. Keying it off fPrivateMemory hid every
+		//image and file backed region from the scanner.
+		return _memCommit ? MEM_COMMIT : MEM_RESERVE;
 	}
 
 	VMMDLL_MAP_VADENTRY get_vad()
